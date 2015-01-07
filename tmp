@@ -1,0 +1,15 @@
+
+DEFUN (module_exit,
+       module_exit_cmd,
+       "exit",
+       "Exit current mode and down to previous mode\n")
+{
+    struct module_inf *pi = (struct module_inf *)vty->index;
+    struct version_inf *vi = pi->version;    
+    
+    vty->index = vi;
+    vty->node = VERSION_NODE;
+    
+    return CMD_SUCCESS;
+}
+
