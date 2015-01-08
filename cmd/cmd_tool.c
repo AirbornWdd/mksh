@@ -320,6 +320,20 @@ DEFUN (system_mkdir,
     return mkdir_cmd(argv[0]);
 }
 
+DEFUN (system_patch,
+       system_patch_cmd,
+       "patch WORD",
+       "Patch the project.\n"
+       "Patch file in the ftpserver path.\n"
+       )
+{
+    char cmd[MK_MAX_STR_LEN] = "";
+
+    sprintf(cmd, "patch -p0 < "DEST_DIR"/%s", argv[0]);
+
+    return cmd_execute_system_command2(cmd);
+}
+
 DEFUN (project_make,
        project_make_cmd,
        "make",
@@ -471,6 +485,7 @@ int cmd_tool_init()
     cmd_install_element (PROJECT_NODE, &project_exit_cmd);
     cmd_install_element (PROJECT_NODE, &project_end_cmd);
     cmd_install_element (PROJECT_NODE, &project_conf_cmd);
+    cmd_install_element (PROJECT_NODE, &system_patch_cmd);    
     cmd_install_element (PROJECT_NODE, &system_pwd_cmd);    
     cmd_install_element (PROJECT_NODE, &system_env_cmd);    
     cmd_install_element (PROJECT_NODE, &system_ls_cmd);    
