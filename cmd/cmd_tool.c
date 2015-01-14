@@ -328,8 +328,16 @@ DEFUN (system_patch,
        )
 {
     char cmd[MK_MAX_STR_LEN] = "";
+    char patchfile[MK_MAX_STR_LEN] = DEST_DIR"/";
 
-    sprintf(cmd, "patch -p0 < "DEST_DIR"/%s", argv[0]);
+    strcat(patchfile, argv[0]);
+
+    if (illegal_patch_file(patchfile)) {
+        vty_out(vty, "Warning: illegal operation in patch file!\n");
+        return CMD_WARNING;
+    }
+    
+    sprintf(cmd, "patch -p0 < %s", patchfile);
 
     return cmd_execute_system_command2(cmd);
 }

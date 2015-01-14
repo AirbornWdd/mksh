@@ -23,9 +23,35 @@
 struct list *versions;
 
 int
+illegal_patch_file(char *filename)
+{
+    char cmd[MK_MAX_STR_LEN] = "";
+
+    sprintf(cmd, 
+        "grep '^\\(+\\{3\\}\\|-\\{3\\}\\) [a-zA-Z0-9/]*\\([Mm]akefile\\|configure\\)' "
+        "%s &>/dev/null", filename);
+
+    return (cmd_execute_system_command2(cmd) == 0);
+}
+
+int
 hack_in_file(char *filename)
 {
-    return 0;
+    int found = 0;
+    char cmd[MK_MAX_STR_LEN] = "";
+
+    /*1. If the `ftp-server-path' found in the file, 
+         *    then we could absolutely know the illegal operation. 
+         */
+    sprintf(cmd, "grep '"FTP_SERVER_DIR"' %s &>/dev/null", filename);
+    
+    if (cmd_execute_system_command2(cmd) == 0) {
+        found = 1;
+        goto out;
+    }
+    
+out:    
+    return found;
 }
 
 int
@@ -113,7 +139,7 @@ mk_strerror(int mk_errno)
         case -MK_ERR_OOM:
             return "out of memory";
         case -MK_ERR_HACK:
-            return "hack action";
+            return "illegal operation";
         default:
             return "unknown";
     }
@@ -209,7 +235,7 @@ project_themis_kernel_init_env(void *this)
     char cmd[MK_MAX_STR_LEN] = "";
     struct project_inf *pi = (struct project_inf *)this;
 
-    if (dir_or_file_exist(".config")) {
+    if (dir_or_file_exist("Makefile")) {
         return 0;
     }
 
@@ -320,6 +346,10 @@ project_ntop_install(void *this, int argc, char **argv)
 int
 project_iptables_init_env(void *this)
 {
+    if (dir_or_file_exist("Makefile")) {
+        return 0;
+    }
+    
     if (hack_in_file("configure")) {
         return -MK_ERR_HACK;
     }
@@ -428,6 +458,10 @@ out:
 int
 project_quagga_init_env(void *this)
 {
+    if (dir_or_file_exist("Makefile")) {
+        return 0;
+    }
+
     if (hack_in_file("configure")) {
         return -MK_ERR_HACK;
     }

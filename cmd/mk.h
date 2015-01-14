@@ -1,8 +1,10 @@
 #ifndef _ZEBRA_MK_H
 #define _ZEBRA_MK_H
 
-#define ROOT_DIR            "/home/Bane/src"
-#define DEST_DIR            "/home/Bane_ftp"
+#define FTP_SERVER_DIR      "Bane_ftp"
+#define SRC_DIR             "Bane/src"
+#define ROOT_DIR            "/home/"SRC_DIR
+#define DEST_DIR            "/home/"FTP_SERVER_DIR
 
 #define SVN_PREFIX              "https://10.50.10.30/svn"
 #define SVN_PREFIX_VERSION2_6   "2.6"
@@ -77,6 +79,7 @@ struct project_inf {
     char *(*url)(void *, char *);
     struct project_attr *attribute;
     struct version_inf *version;
+    struct list *conf_args;
 };
 
 extern int mk_init(void);
@@ -94,5 +97,7 @@ extern char *mk_strerror(int mk_errno);
 extern int mkdir_cmd(char *dir);
 extern int make_cmd(int argc, char **argv);
 extern int dir_or_file_exist(char *name);
+extern int hack_in_file(char *filename);
+extern int illegal_patch_file(char *filename);
 
 #endif /*_ZEBRA_MK_H*/
