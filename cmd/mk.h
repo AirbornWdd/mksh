@@ -65,13 +65,14 @@ struct project_attr {
     int (*init_env)(void *);
     void (*finit_env)(void *);
     int (*install2)(void *, int, char **);
+    int (*compile2)(void *, int, char **);
 };
 
 struct project_inf {
     char *name;
     int (*init)(void *, int);
     int (*refresh)(void *);
-    int (*compile)(int, char **);
+    int (*compile)(void *, int, char **);
     int (*install)(void *, int, char **);
     int (*clean)(int, char **);
     void (*finit)(void *);

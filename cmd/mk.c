@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <linklist.h>
+#include <utime.h>
 
 #include "mk.h"
 
@@ -52,6 +53,22 @@ hack_in_file(char *filename)
     
 out:    
     return found;
+}
+
+int
+check_single_file_w(char *file)
+{
+    struct stat sb;
+    
+    if (stat(file, &sb) == -1) {
+        return -MK_ERR_SYSTEM;
+    }
+
+    if (sb.st_mode & (S_IWOTH|S_IWGRP|S_IWUSR)) {
+        return 1;
+    }
+
+    return 0;
 }
 
 int
@@ -124,6 +141,35 @@ mk_string_to_upper(char *string)
     }
 
     return string;
+}
+
+int
+handle_configure_file(void)
+{
+    struct stat sb;
+    struct utimbuf ub;    
+    
+    if (hack_in_file("configure")) {
+        return -MK_ERR_HACK;
+    }
+
+    if (stat("configure", &sb) == -1) {
+        return -MK_ERR_SYSTEM;
+    }
+
+    if (sb.st_mode & (S_IWOTH|S_IWGRP|S_IWUSR)) {
+        if (change_single_file_rx("configure")) {
+            return -MK_ERR_SYSTEM;
+        }
+        
+        ub.actime = sb.st_atime;
+        ub.modtime = sb.st_mtime;
+        if (utime("configure", &ub) == -1) {
+            return -MK_ERR_SYSTEM;
+        }
+    }
+
+    return 0;
 }
 
 char *
@@ -235,7 +281,7 @@ project_themis_kernel_init_env(void *this)
     char cmd[MK_MAX_STR_LEN] = "";
     struct project_inf *pi = (struct project_inf *)this;
 
-    if (dir_or_file_exist("Makefile")) {
+    if (dir_or_file_exist(".config")) {
         return 0;
     }
 
@@ -346,12 +392,10 @@ project_ntop_install(void *this, int argc, char **argv)
 int
 project_iptables_init_env(void *this)
 {
-    if (dir_or_file_exist("Makefile")) {
-        return 0;
-    }
-    
-    if (hack_in_file("configure")) {
-        return -MK_ERR_HACK;
+    int ret;
+
+    if ((ret = handle_configure_file()) != 0) {
+        return ret;
     }
 
     if (cmd_execute_system_command2("./configure --enable-static --disable-shared")) {
@@ -458,14 +502,12 @@ out:
 int
 project_quagga_init_env(void *this)
 {
-    if (dir_or_file_exist("Makefile")) {
-        return 0;
-    }
+    int ret;
 
-    if (hack_in_file("configure")) {
-        return -MK_ERR_HACK;
+    if ((ret = handle_configure_file()) != 0) {
+        return ret;
     }
-
+    
     if (cmd_execute_system_command2("./configure --enable-vtysh --enable-user='root' "
         "--enable-group='root' --enable-vty-group='root' --enable-isisd")) {
         return -MK_ERR_SYSTEM;
@@ -474,43 +516,87 @@ project_quagga_init_env(void *this)
     return change_all_makefiles_ro("./");
 }
 
+int
+project_has_configure_compile(void *this, int argc, char **argv)
+{
+    int ret = 0;
+    struct stat sb;
+    struct utimbuf ub;    
+    
+    if (!dir_or_file_exist("configure")) {
+        return make_cmd(argc, argv);
+    }
+
+    if (hack_in_file("configure")) {
+        return -MK_ERR_HACK;
+    }
+
+    if (stat("configure", &sb) == -1) {
+        return -MK_ERR_SYSTEM;
+    }
+
+    if (cmd_execute_system_command2("chmod 777 configure &>/dev/null")) {
+        return -MK_ERR_SYSTEM;
+    }
+
+    if (make_cmd(argc, argv)) {
+        ret = -MK_ERR_SYSTEM;
+        goto __rollback;
+    }
+
+__rollback:
+    cmd_execute_system_command2("chmod 555 configure &>/dev/null");    
+    ub.actime = sb.st_atime;
+    ub.modtime = sb.st_mtime;
+    if (utime("configure", &ub) == -1) {
+        return -MK_ERR_SYSTEM;
+    }
+    return ret;
+}
+
 struct project_attr project_attrs[] = 
 {
     {
          "fcms", 
          project_fcms_init_env,
          project_fcms_finit_env,
+         NULL,
          NULL
     },
     {
          "themis.kernel", 
          project_themis_kernel_init_env,
          NULL,
-         project_themis_kernel_install
+         project_themis_kernel_install,
+         NULL
     },
     {
          "library", 
          NULL,
          NULL,
-         project_library_install
+         project_library_install,
+         NULL
     },
     {
          "ntop", 
          project_ntop_init_env,
          NULL,
-         project_ntop_install
+         project_ntop_install,
+         NULL
     },
     {
          "iptables", 
          project_iptables_init_env,
          NULL,
-         project_iptables_install
+         project_iptables_install,
+         project_has_configure_compile
     },
     {
          "quagga", 
          project_quagga_init_env,
          NULL,
-         project_quagga_install
+         project_quagga_install,
+         project_has_configure_compile
     },
 };
 
@@ -601,8 +687,14 @@ project_finit(void *this)
 }
 
 int
-project_compile(int argc, char **argv)
+project_compile(void *this, int argc, char **argv)
 {
+    struct project_inf *pi = (struct project_inf *)this;
+
+    if (pi->attribute && pi->attribute->compile2) {
+        return pi->attribute->compile2(pi, argc, argv);
+    }
+
     return make_cmd(argc, argv);
 }
 

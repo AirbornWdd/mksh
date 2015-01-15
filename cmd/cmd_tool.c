@@ -349,7 +349,7 @@ DEFUN (project_make,
 {
     struct project_inf *pi = (struct project_inf *)vty->index;
 
-    pi->compile(0, NULL);
+    pi->compile(pi, 0, NULL);
     
     return CMD_SUCCESS;
 }
