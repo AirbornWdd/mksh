@@ -463,6 +463,28 @@ DEFUN (pro_conf_kernel_conf_file,
     return cmd_execute_system_command ("cp", 2, myargv);
 }
 
+DEFUN (version_build,
+       version_build_cmd,
+       "build",
+       "Build the whole image.\n")
+{
+    struct version_inf *vi = (struct version_inf *)vty->index;
+    char dir[MK_MAX_STR_LEN];
+    char cmd[MK_MAX_STR_LEN] = "./fwbuild ";
+    
+    vi->url(vi, dir);
+    svn_co_cmd(dir);
+    
+    strcat(cmd, vi->arch);
+    chdir("build");
+
+    cmd_execute_system_command2(cmd);
+
+    chdir("../");
+    
+    return CMD_SUCCESS;
+}
+
 int cmd_tool_init()
 {
     /* Each node's basic commands. */
@@ -489,6 +511,7 @@ int cmd_tool_init()
     cmd_install_element (VERSION_NODE, &show_version_detail_cmd);
     cmd_install_element (VERSION_NODE, &show_project_cmd);
     cmd_install_element (VERSION_NODE, &version_cmd_refresh_cmd);
+    cmd_install_element (VERSION_NODE, &version_build_cmd);
     
     cmd_install_element (PROJECT_NODE, &project_exit_cmd);
     cmd_install_element (PROJECT_NODE, &project_end_cmd);

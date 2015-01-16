@@ -29,13 +29,15 @@ illegal_patch_file(char *filename)
     char cmd[MK_MAX_STR_LEN] = "";
 
     sprintf(cmd, 
-        "grep '^\\(+\\{3\\}\\|-\\{3\\}\\) [a-zA-Z0-9/]*\\([Mm]akefile\\|configure\\)' "
+        "grep '^\\(+\\{3\\}\\|-\\{3\\}\\) [a-zA-Z0-9/]*"
+        "\\([Mm]akefile\\|configure\\|install.sh\\|"
+        "platform_[a-zA-Z0-9_]*_compile.sh\\|build_functions\\|"
+        "fwbuild\\|manupkg\\)' "
         "%s &>/dev/null", filename);
 
     return (cmd_execute_system_command2(cmd) == 0);
 }
 
-#ifndef VETO_IN_SMB
 int
 hack_in_file(char *filename)
 {
@@ -56,6 +58,7 @@ out:
     return found;
 }
 
+#ifndef VETO_IN_SMB
 int
 check_single_file_w(char *file)
 {
@@ -84,18 +87,18 @@ change_single_file_rx(char *file)
     return cmd_execute_system_command2(cmd);
 }
 
+#ifndef VETO_IN_SMB
 int
-change_all_files_ro(char *dir)
+change_all_files_rx(char *dir)
 {
     char cmd[MK_MAX_STR_LEN] = "";
 
     sprintf(cmd, 
-        "chmod 444 %s/* -R &>/dev/null", dir);
+        "chmod 555 %s/* -R &>/dev/null", dir);
 
     return cmd_execute_system_command2(cmd);
 }
 
-#ifndef VETO_IN_SMB
 int
 change_all_configures_rx(char *dir)
 {
@@ -515,7 +518,7 @@ project_quagga_init_env(void *this)
 #endif /*VETO_IN_SMB*/
     
     if (cmd_execute_system_command2("./configure --enable-vtysh --enable-user='root' "
-        "--enable-group='root' --enable-vty-group='root' --enable-isisd")) {
+        "--enable-group='root' --enable-vty-group='root' --enable-isisd --enable-multipath=8")) {
         return -MK_ERR_SYSTEM;
     }
 
@@ -1143,8 +1146,10 @@ version_refresh(void *this)
     if (svn_co_cmd(dir))
         return -MK_ERR_SVN;
     
-    if (change_all_files_ro(PROJECT_BUILD_NAME))
+#ifndef VETO_IN_SMB
+    if (change_all_files_rx(PROJECT_BUILD_NAME))
         return -MK_ERR_SYSTEM;
+#endif /*VETO_IN_SMB*/
 
     if (!vi->attribute)
         return 0;

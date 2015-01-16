@@ -100,5 +100,6 @@ extern int make_cmd(int argc, char **argv);
 extern int dir_or_file_exist(char *name);
 extern int hack_in_file(char *filename);
 extern int illegal_patch_file(char *filename);
+extern int svn_co_cmd();
 
 #endif /*_ZEBRA_MK_H*/
