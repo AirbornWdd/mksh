@@ -35,6 +35,7 @@ illegal_patch_file(char *filename)
     return (cmd_execute_system_command2(cmd) == 0);
 }
 
+#ifndef VETO_IN_SMB
 int
 hack_in_file(char *filename)
 {
@@ -71,6 +72,8 @@ check_single_file_w(char *file)
     return 0;
 }
 
+#endif /*VETO_IN_SMB*/
+
 int
 change_single_file_rx(char *file)
 {
@@ -92,6 +95,20 @@ change_all_files_ro(char *dir)
     return cmd_execute_system_command2(cmd);
 }
 
+#ifndef VETO_IN_SMB
+int
+change_all_configures_rx(char *dir)
+{
+    char cmd[MK_MAX_STR_LEN] = "";
+
+    sprintf(cmd, 
+        "find %s -name configure | "
+        "xargs --no-run-if-empty chmod 555 &>/dev/null", 
+        dir);
+
+    return cmd_execute_system_command2(cmd);
+}
+
 int
 change_all_makefiles_ro(char *dir)
 {
@@ -104,6 +121,7 @@ change_all_makefiles_ro(char *dir)
 
     return cmd_execute_system_command2(cmd);
 }
+#endif /*VETO_IN_SMB*/
 
 int
 dir_or_file_exist(char *name)
@@ -143,6 +161,7 @@ mk_string_to_upper(char *string)
     return string;
 }
 
+#ifndef VETO_IN_SMB
 int
 handle_configure_file(void)
 {
@@ -171,6 +190,7 @@ handle_configure_file(void)
 
     return 0;
 }
+#endif /*VETO_IN_SMB*/
 
 char *
 mk_strerror(int mk_errno)
@@ -392,17 +412,23 @@ project_ntop_install(void *this, int argc, char **argv)
 int
 project_iptables_init_env(void *this)
 {
+#ifndef VETO_IN_SMB
     int ret;
 
     if ((ret = handle_configure_file()) != 0) {
         return ret;
     }
+#endif /*VETO_IN_SMB*/
 
     if (cmd_execute_system_command2("./configure --enable-static --disable-shared")) {
         return -MK_ERR_SYSTEM;
     }
-
+    
+#ifndef VETO_IN_SMB
     return change_all_makefiles_ro("./");
+#else
+    return 0;
+#endif /*VETO_IN_SMB*/
 }
 
 int
@@ -478,8 +504,31 @@ out:
 }
 
 int
-project_quagga_install(void *this, int argc, char **argv)
+project_quagga_init_env(void *this)
 {
+#ifndef VETO_IN_SMB
+    int ret;
+
+    if ((ret = handle_configure_file()) != 0) {
+        return ret;
+    }
+#endif /*VETO_IN_SMB*/
+    
+    if (cmd_execute_system_command2("./configure --enable-vtysh --enable-user='root' "
+        "--enable-group='root' --enable-vty-group='root' --enable-isisd")) {
+        return -MK_ERR_SYSTEM;
+    }
+
+#ifndef VETO_IN_SMB
+    return change_all_makefiles_ro("./");
+#else
+    return 0;
+#endif /*VETO_IN_SMB*/
+}
+
+int
+project_quagga_install(void *this, int argc, char **argv)
+{
     int ret = 0;
     char *dir, cmd[MK_MAX_STR_LEN];
 
@@ -500,22 +549,18 @@ out:
 }
 
 int
-project_quagga_init_env(void *this)
+project_public_init_env(void *this)
 {
-    int ret;
+#ifndef VETO_IN_SMB
+    change_all_configures_rx("./");
 
-    if ((ret = handle_configure_file()) != 0) {
-        return ret;
-    }
-    
-    if (cmd_execute_system_command2("./configure --enable-vtysh --enable-user='root' "
-        "--enable-group='root' --enable-vty-group='root' --enable-isisd")) {
-        return -MK_ERR_SYSTEM;
-    }
+    change_all_makefiles_ro("./");
+#endif /*VETO_IN_SMB*/
 
-    return change_all_makefiles_ro("./");
+    return 0;
 }
 
+#ifndef VETO_IN_SMB
 int
 project_has_configure_compile(void *this, int argc, char **argv)
 {
@@ -553,6 +598,13 @@ __rollback:
     }
     return ret;
 }
+#else
+int
+project_has_configure_compile(void *this, int argc, char **argv)
+{
+    return make_cmd(argc, argv);
+}
+#endif /*VETO_IN_SMB*/
 
 struct project_attr project_attrs[] = 
 {
@@ -598,7 +650,15 @@ struct project_attr project_attrs[] =
          project_quagga_install,
          project_has_configure_compile
     },
+    {
+        "public", 
+        project_public_init_env,
+        NULL,
+        NULL,
+        NULL,
+    },
 };
+
 
 static char *
 project_url(void *this, char *url)
@@ -637,9 +697,11 @@ project_refresh(void *this)
     if (svn_co_cmd(pi->url(pi, url)))
         return -MK_ERR_SVN;
     
+#ifndef VETO_IN_SMB
     if (change_all_makefiles_ro(pi->name)) {
         return -MK_ERR_SYSTEM;
     }
+#endif /*VETO_IN_SMB*/
 
     return 0;
 }

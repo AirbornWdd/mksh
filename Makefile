@@ -1,6 +1,6 @@
 CC=$(CROSS)gcc
 CFLAGS+=-Wall -I. -I../ -g
-CFLAGS+=-rdynamic -DVTY_SIMPLE_NODE
+CFLAGS+=-rdynamic -DVTY_SIMPLE_NODE -DVETO_IN_SMB
 LIBS=-lreadline -lcrypt -lncurses
 STRIP=$(CROSS)strip
 TARGETDIR=/usr/local/bin
