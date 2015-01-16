@@ -25,6 +25,7 @@ enum MK_ERROR_NUM {
     MK_ERR_SYSTEM,
     MK_ERR_OOM,
     MK_ERR_HACK,
+    MK_ERR_BUILD,
     MK_ERR_MAX
 };
 
@@ -41,6 +42,7 @@ struct version_attr {
     int (*init_env)(void *);
     int (*refresh)(void *);
     void (*finit_env)(void *);
+    int (*build)(void *);
 };
 
 struct version_inf {
@@ -49,6 +51,7 @@ struct version_inf {
     char *dir_name;
     int (*init)(void *, char *);
     void (*finit)(void *);
+    int (*build)(void *);
     int (*refresh)(void *);
     int (*has_project)(void *, char *);
     int (*arch_invalid)(char *);
@@ -100,6 +103,5 @@ extern int make_cmd(int argc, char **argv);
 extern int dir_or_file_exist(char *name);
 extern int hack_in_file(char *filename);
 extern int illegal_patch_file(char *filename);
-extern int svn_co_cmd();
 
 #endif /*_ZEBRA_MK_H*/

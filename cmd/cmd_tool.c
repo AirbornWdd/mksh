@@ -468,19 +468,13 @@ DEFUN (version_build,
        "build",
        "Build the whole image.\n")
 {
+    int ret;
     struct version_inf *vi = (struct version_inf *)vty->index;
-    char dir[MK_MAX_STR_LEN];
-    char cmd[MK_MAX_STR_LEN] = "./fwbuild ";
-    
-    vi->url(vi, dir);
-    svn_co_cmd(dir);
-    
-    strcat(cmd, vi->arch);
-    chdir("build");
 
-    cmd_execute_system_command2(cmd);
-
-    chdir("../");
+    if ((ret = vi->build(vi)) != 0) {
+        vty_out(vty, "Version build error: %s.\n", 
+            mk_strerror(ret));
+    }
     
     return CMD_SUCCESS;
 }

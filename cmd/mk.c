@@ -977,6 +977,21 @@ version_3602_init_env(void *this)
 }
 
 int
+version_3602_build(void *this)
+{
+    char cmd[MK_MAX_STR_LEN] = "", *install_dir;
+    
+    if (((install_dir = getenv("INSTALL_ROOT")) == NULL)) {
+        return -MK_ERR_SYSTEM;
+    }
+    
+    sprintf(cmd, "find /tmp/install_root -name '*.pkg' | xargs --no-run-if-empty -i cp {} %s", 
+        install_dir);
+    
+    return cmd_execute_system_command2(cmd);
+}
+
+int
 version_appctl_refresh(void *this)
 {
     struct version_inf *vi = (struct version_inf *)this;
@@ -1100,6 +1115,22 @@ version_appctl_finit_env(void *this)
     unsetenv("SNMPLIB");
 }
 
+int
+version_appctl_build(void *this)
+{
+    struct version_inf *vi = (struct version_inf *)this;
+    char cmd[MK_MAX_STR_LEN] = "", *install_dir;
+
+    if (((install_dir = getenv("INSTALL_ROOT")) == NULL)) {
+        return -MK_ERR_SYSTEM;
+    }
+
+    sprintf(cmd, "find install/%s/ -name '*.pkg' | xargs --no-run-if-empty -i cp {} %s", 
+        vi->arch, install_dir);
+
+    return cmd_execute_system_command2(cmd);
+}
+
 struct version_attr version_attrs[] = 
 {
     {
@@ -1107,14 +1138,16 @@ struct version_attr version_attrs[] =
          "/Branch_3.6.0.2_Maintain_20131011", 
          version_3602_init_env,
          version_3602_refresh,
-         version_3602_finit_env
+         version_3602_finit_env,
+         version_3602_build
     },
     {
          VERSION_2_6_BRANCHES
          "/Branch_AppControl_20140103", 
          version_appctl_init_env,
          version_appctl_refresh,
-         version_appctl_finit_env
+         version_appctl_finit_env,
+         version_appctl_build
     },    
 };
 
@@ -1156,6 +1189,30 @@ version_refresh(void *this)
 
     return vi->attribute->refresh ? 
         vi->attribute->refresh(vi) : 0;
+}
+
+int
+version_build(void *this)
+{
+    struct version_inf *vi = (struct version_inf *)this;
+    char dir[MK_MAX_STR_LEN];
+    char cmd[MK_MAX_STR_LEN] = "./fwbuild ";
+    
+    vi->url(vi, dir);
+    svn_co_cmd(dir);
+    
+    strcat(cmd, vi->arch);
+    chdir("build");
+
+    cmd_execute_system_command2(cmd);
+
+    chdir("../");
+
+    if (!vi->attribute)
+        return -MK_ERR_BUILD;
+    
+    return vi->attribute->build ? 
+        vi->attribute->build(vi) : -MK_ERR_BUILD;
 }
 
 int
@@ -1259,6 +1316,7 @@ version_create_finish(struct version_inf *vi)
     vi->init = version_init;
     vi->finit = version_finit;
     vi->refresh = version_refresh;
+    vi->build = version_build;
     vi->has_project = version_has_project;
     vi->arch_invalid = version_arch_invalid;
     vi->url = version_url;
